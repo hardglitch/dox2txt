@@ -1,0 +1,19 @@
+[package]
+name = "dox2txt"
+version = "0.2.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1"
+zip = "5.1"
+roxmltree = "0.20"
+rtf-parser = "0.4"
+scraper = "0.24"
+walkdir = "2"
+
+[profile.release]
+strip = true
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
