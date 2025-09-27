@@ -9,17 +9,23 @@ use roxmltree::Document;
 use std::fs::File;
 use std::io::Read;
 use std::str::FromStr;
+
 // -------- RTF ----------
 use rtf_parser::RtfDocument;
 
 // -------- HTML/HTM ----------
 use scraper::{Html, Selector};
 
+#[derive(PartialEq)]
+enum Format {
+    Docx,
+    Epub,
+}
 
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().collect();
     if args.len() < 2 {
-        eprintln!("Usage: {} <path/to/your/folder>", args[0]);
+        eprintln!("Usage: {} <path/to/your/folder> [-r]", args[0]);
         std::process::exit(1);
     }
 
@@ -37,7 +43,7 @@ fn main() -> Result<()> {
                 let out = entry.path().with_extension("txt");
                 println!("-> {}", out.display());
                 fs::write(out, text)?;
-                if args[2] == "-r" {
+                if args.get(2) == Some(&"-r".to_owned()) {
                     fs::remove_file(entry.path())?
                 }
             }
@@ -54,23 +60,26 @@ fn convert_file(path: &Path) -> Result<String> {
         .to_lowercase();
 
     match ext.as_str() {
-        "epub"  => extract_epub(path),
+        "epub"  => extract_zipped(path, Format::Epub),
         "fb2"   => extract_fb2(path),
-        "docx"  => extract_docx(path),
+        "docx"  => extract_zipped(path, Format::Docx),
         "rtf"   => extract_rtf(path),
         "html" | "htm" => extract_html(path),
         _ => anyhow::bail!("unsupported extension"),
     }
 }
 
-// ---------- EPUB ----------
-fn extract_epub(path: &Path) -> Result<String> {
+// ---------- EPUB/DOCX ----------
+fn extract_zipped(path: &Path, format: Format) -> Result<String> {
     let file = File::open(path)?;
     let mut archive = ZipArchive::new(file)?;
     let mut buf = String::new();
     for i in 0..archive.len() {
         let mut f = archive.by_index(i)?;
-        if f.name().ends_with(".xhtml") || f.name().ends_with(".html") {
+        if format == Format::Epub && (f.name().ends_with(".xhtml") || f.name().ends_with(".html"))
+                 ||
+           format == Format::Docx && f.name() == "word/document.xml"
+        {
             let mut xml = String::new();
             f.read_to_string(&mut xml)?;
             let doc = Document::parse(&xml)?;
@@ -94,28 +103,6 @@ fn extract_fb2(path: &Path) -> Result<String> {
         if let Some(t) = n.text() && !t.is_empty() {
             buf.push_str(t);
             buf.push(' ');
-        }
-    }
-    Ok(buf)
-}
-
-// ---------- DOCX ----------
-fn extract_docx(path: &Path) -> Result<String> {
-    let file = File::open(path)?;
-    let mut archive = ZipArchive::new(file)?;
-    let mut buf = String::new();
-    for i in 0..archive.len() {
-        let mut f = archive.by_index(i)?;
-        if f.name() == "word/document.xml" {
-            let mut xml = String::new();
-                f.read_to_string(&mut xml)?;
-                let doc = Document::parse(&xml)?;
-                for n in doc.descendants().filter(|n| n.is_text()) {
-                    if let Some(t) = n.text() && !t.is_empty() {
-                        buf.push_str(t);
-                        buf.push(' ');
-                    }
-                }
         }
     }
     Ok(buf)
