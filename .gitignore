@@ -1,1 +1,6 @@
-/target
+*
+!/src/
+!/src/*.rs
+!Cargo.toml
+!Cargo.lock
+
