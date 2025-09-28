@@ -2,8 +2,7 @@ name: Build Release
 
 on:
   push:
-    tags:
-      - "v*"
+    types: [created]
 
 permissions:
   contents: write
