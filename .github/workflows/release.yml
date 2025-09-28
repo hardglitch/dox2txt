@@ -46,5 +46,6 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           files: ./artifacts/**/*
+          overwrite: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
