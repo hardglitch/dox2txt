@@ -1,7 +1,10 @@
 *
 !/src/
 !/src/*.rs
-!Cargo.toml
-!Cargo.lock
+!/.github/
+!/.github/workflows/
+!/.github/workflows/*.yml
+!*.toml
+!*.lock
 !LICENSE
 !README.md
