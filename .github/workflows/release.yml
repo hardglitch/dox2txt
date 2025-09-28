@@ -26,12 +26,12 @@ jobs:
       - name: Build
         run: cargo build --release
 
-      - name: Upload binaries
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ runner.os }}-binary
           path: target/release/*
-  
+
   release:
     needs: build
     runs-on: ubuntu-latest
@@ -41,9 +41,10 @@ jobs:
         with:
           path: ./artifacts
 
-      - name: Create Release
+      - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.ref_name }}
           files: ./artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
