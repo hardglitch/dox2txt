@@ -16,6 +16,10 @@ use rtf_parser::RtfDocument;
 // -------- HTML/HTM ----------
 use scraper::{Html, Selector};
 
+// -------- TXT ----------
+use chardetng::EncodingDetector;
+use encoding_rs::UTF_8;
+
 #[derive(PartialEq)]
 enum Format {
     Docx,
@@ -29,7 +33,7 @@ fn main() -> Result<()> {
         std::process::exit(1);
     }
 
-    let sup_ext = ["epub", "fb2", "docx", "rtf", "html", "htm"];
+    let sup_ext = ["epub", "fb2", "docx", "rtf", "html", "htm", "txt"];
 
     let dir = PathBuf::from_str(&args[1])?;
     for entry in WalkDir::new(dir).into_iter().filter_map(Result::ok) {
@@ -42,8 +46,12 @@ fn main() -> Result<()> {
             if !text.is_empty() {
                 let out = entry.path().with_extension("txt");
                 println!("-> {}", out.display());
+
                 fs::write(out, text)?;
-                if args.get(2) == Some(&"-r".to_owned()) {
+
+                if args.get(2) == Some(&"-r".to_owned()) &&
+                   !ext.eq_ignore_ascii_case("txt")
+                {
                     fs::remove_file(entry.path())?
                 }
             }
@@ -65,6 +73,7 @@ fn convert_file(path: &Path) -> Result<String> {
         "docx"  => extract_zipped(path, Format::Docx),
         "rtf"   => extract_rtf(path),
         "html" | "htm" => extract_html(path),
+        "txt" => convert_txt(path),
         _ => anyhow::bail!("unsupported extension"),
     }
 }
@@ -127,4 +136,26 @@ fn extract_html(path: &Path) -> Result<String> {
         buf.push_str(&el.text().collect::<Vec<_>>().join(" "));
     }
     Ok(buf)
+}
+
+
+fn convert_txt(path: &Path) -> Result<String> {
+    let data = fs::read(path)?;
+
+    // First: verify if file is already valid UTF-8
+    let (_, _, utf8_errors) = UTF_8.decode(&data);
+    if !utf8_errors { return Ok(String::new()) }
+
+    // Otherwise, detect encoding
+    let mut detector = EncodingDetector::new();
+    detector.feed(&data, true);
+    let enc = detector.guess(None, false);
+
+    // Try decode text
+    let (text, _, had_errors) = enc.decode(&data);
+    if had_errors {
+        let enc_name = enc.name();
+        return Err(anyhow!("{}: decode errors with {}", path.display(), enc_name))
+    }
+    Ok(text.to_string())
 }

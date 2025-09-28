@@ -10,6 +10,8 @@ roxmltree = "0.20"
 rtf-parser = "0.4"
 scraper = "0.24"
 walkdir = "2"
+chardetng = "0.1"
+encoding_rs = "0.8"
 
 [profile.release]
 strip = true
