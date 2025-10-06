@@ -92,8 +92,13 @@ fn extract_zipped(path: &Path, format: Format) -> Result<String> {
         {
             let mut data = String::new();
             f.read_to_string(&mut data)?;
-            let xml = encode_to_utf8(path, data.as_bytes())?;
+
+            let xml =
+                if is_utf8(data.as_bytes()) { String::from_utf8_lossy(data.as_bytes()) }
+                else { encode_to_utf8(path, data.as_bytes())? };
+
             let doc = Document::parse(&xml)?;
+
             for n in doc.descendants().filter(|n| n.is_text()) {
                 if let Some(t) = n.text() && !t.is_empty() {
                     buf.push_str(t);
@@ -108,8 +113,12 @@ fn extract_zipped(path: &Path, format: Format) -> Result<String> {
 // ---------- FB2 ----------
 fn extract_fb2(path: &Path) -> Result<String> {
     let data = fs::read(path)?;
-    let xml = encode_to_utf8(path, &data)?;
+    let xml =
+        if is_utf8(&data) { String::from_utf8_lossy(&data) }
+        else { encode_to_utf8(path, &data)? };
+
     let doc = Document::parse(&xml)?;
+
     let mut buf = String::new();
     for n in doc.descendants().filter(|n| n.is_text()) {
         if let Some(t) = n.text() && !t.is_empty() {
@@ -117,44 +126,61 @@ fn extract_fb2(path: &Path) -> Result<String> {
             buf.push(' ');
         }
     }
+
     Ok(buf)
 }
 
 // ---------- RTF ----------
 fn extract_rtf(path: &Path) -> Result<String> {
     let data = fs::read(path)?;
-    let rtf = encode_to_utf8(path, &data)?;
+
+    let rtf =
+        if is_utf8(&data) { String::from_utf8_lossy(&data) }
+        else { encode_to_utf8(path, &data)? };
+
     let text = RtfDocument::try_from(rtf.as_ref())
         .map(|d| d.get_text())
         .map_err(|e| anyhow!(e.to_string()))?;
+
     Ok(text)
 }
 
 // ---------- HTML | HTM ----------
 fn extract_html(path: &Path) -> Result<String> {
     let data = fs::read(path)?;
-    let html = encode_to_utf8(path, &data)?;
+    let html =
+        if is_utf8(&data) { String::from_utf8_lossy(&data) }
+        else { encode_to_utf8(path, &data)? };
+
     let document = Html::parse_document(&html);
     let selector = Selector::parse("body")
         .map_err(|e| anyhow!(e.to_string()))?;
+
     let mut buf = String::new();
     for el in document.select(&selector) {
         buf.push_str(&el.text().collect::<Vec<_>>().join(" "));
     }
+
     Ok(buf)
 }
 
 // ---------- TXT ----------
 fn convert_to_utf8(path: &Path) -> Result<String> {
     let data = fs::read(path)?;
-    Ok(encode_to_utf8(path, &data)?.to_string())
+    let txt =
+        if is_utf8(&data) { String::from_utf8_lossy(&data) }
+        else { encode_to_utf8(path, &data)? };
+
+    Ok(txt.to_string())
+}
+
+fn is_utf8(data: &[u8]) -> bool {
+    // First: verify if file is already valid UTF-8
+    let (_, _, utf8_errors) = UTF_8.decode(data);
+    !utf8_errors
 }
 
 fn encode_to_utf8<'a>(path: &Path, data: &'a [u8]) -> Result<Cow<'a, str>> {
-
-    // First: verify if file is already valid UTF-8
-    let (_, _, utf8_errors) = UTF_8.decode(data);
-    if !utf8_errors { return Ok(Cow::from(String::new())) }
 
     // Otherwise, detect encoding
     let mut detector = EncodingDetector::new();
