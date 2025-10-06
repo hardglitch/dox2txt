@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::fs;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
@@ -73,7 +74,7 @@ fn convert_file(path: &Path) -> Result<String> {
         "docx"  => extract_zipped(path, Format::Docx),
         "rtf"   => extract_rtf(path),
         "html" | "htm" => extract_html(path),
-        "txt" => convert_txt(path),
+        "txt" => convert_to_utf8(path),
         _ => anyhow::bail!("unsupported extension"),
     }
 }
@@ -89,8 +90,9 @@ fn extract_zipped(path: &Path, format: Format) -> Result<String> {
                  ||
            format == Format::Docx && f.name() == "word/document.xml"
         {
-            let mut xml = String::new();
-            f.read_to_string(&mut xml)?;
+            let mut data = String::new();
+            f.read_to_string(&mut data)?;
+            let xml = encode_to_utf8(path, data.as_bytes())?;
             let doc = Document::parse(&xml)?;
             for n in doc.descendants().filter(|n| n.is_text()) {
                 if let Some(t) = n.text() && !t.is_empty() {
@@ -105,7 +107,8 @@ fn extract_zipped(path: &Path, format: Format) -> Result<String> {
 
 // ---------- FB2 ----------
 fn extract_fb2(path: &Path) -> Result<String> {
-    let xml = fs::read_to_string(path)?;
+    let data = fs::read(path)?;
+    let xml = encode_to_utf8(path, &data)?;
     let doc = Document::parse(&xml)?;
     let mut buf = String::new();
     for n in doc.descendants().filter(|n| n.is_text()) {
@@ -119,7 +122,9 @@ fn extract_fb2(path: &Path) -> Result<String> {
 
 // ---------- RTF ----------
 fn extract_rtf(path: &Path) -> Result<String> {
-    let text = RtfDocument::from_filepath(path.to_str().unwrap_or_default())
+    let data = fs::read(path)?;
+    let rtf = encode_to_utf8(path, &data)?;
+    let text = RtfDocument::try_from(rtf.as_ref())
         .map(|d| d.get_text())
         .map_err(|e| anyhow!(e.to_string()))?;
     Ok(text)
@@ -127,7 +132,8 @@ fn extract_rtf(path: &Path) -> Result<String> {
 
 // ---------- HTML | HTM ----------
 fn extract_html(path: &Path) -> Result<String> {
-    let html = fs::read_to_string(path)?;
+    let data = fs::read(path)?;
+    let html = encode_to_utf8(path, &data)?;
     let document = Html::parse_document(&html);
     let selector = Selector::parse("body")
         .map_err(|e| anyhow!(e.to_string()))?;
@@ -138,24 +144,28 @@ fn extract_html(path: &Path) -> Result<String> {
     Ok(buf)
 }
 
-
-fn convert_txt(path: &Path) -> Result<String> {
+// ---------- TXT ----------
+fn convert_to_utf8(path: &Path) -> Result<String> {
     let data = fs::read(path)?;
+    Ok(encode_to_utf8(path, &data)?.to_string())
+}
+
+fn encode_to_utf8<'a>(path: &Path, data: &'a [u8]) -> Result<Cow<'a, str>> {
 
     // First: verify if file is already valid UTF-8
-    let (_, _, utf8_errors) = UTF_8.decode(&data);
-    if !utf8_errors { return Ok(String::new()) }
+    let (_, _, utf8_errors) = UTF_8.decode(data);
+    if !utf8_errors { return Ok(Cow::from(String::new())) }
 
     // Otherwise, detect encoding
     let mut detector = EncodingDetector::new();
-    detector.feed(&data, true);
+    detector.feed(data, true);
     let enc = detector.guess(None, false);
 
     // Try decode text
-    let (text, _, had_errors) = enc.decode(&data);
+    let (text, _, had_errors) = enc.decode(data);
     if had_errors {
         let enc_name = enc.name();
         return Err(anyhow!("{}: decode errors with {}", path.display(), enc_name))
     }
-    Ok(text.to_string())
+    Ok(text)
 }

@@ -1,12 +1,12 @@
 [package]
 name = "dox2txt"
-version = "0.3.0"
+version = "0.3.5"
 edition = "2024"
 
 [dependencies]
 anyhow = "1"
 zip = "5.1"
-roxmltree = "0.20"
+roxmltree = "0.21"
 rtf-parser = "0.4"
 scraper = "0.24"
 walkdir = "2"
