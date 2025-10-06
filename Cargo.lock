@@ -240,7 +240,7 @@ dependencies = [
 
 [[package]]
 name = "dox2txt"
-version = "0.3.5"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "chardetng",
@@ -716,7 +716,7 @@ dependencies = [
 [[package]]
 name = "rtf-parser"
 version = "0.4.2"
-source = "git+https://github.com/hardglitch/rtf-parser.git?branch=master#3691a91a856cbd8b08eca73d290573cc6a2a4758"
+source = "git+https://github.com/hardglitch/rtf-parser.git?branch=master#4b45af06922512e3c30c6263fec16a63c8dc2fe4"
 dependencies = [
  "serde",
  "tsify",
