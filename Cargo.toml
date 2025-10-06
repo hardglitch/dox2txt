@@ -7,7 +7,7 @@ edition = "2024"
 anyhow = "1"
 zip = "5.1"
 roxmltree = "0.21"
-rtf-parser = "0.4"
+rtf-parser = { git = "https://github.com/hardglitch/rtf-parser.git", branch = "master" }
 scraper = "0.24"
 walkdir = "2"
 chardetng = "0.1"

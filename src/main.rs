@@ -42,18 +42,27 @@ fn main() -> Result<()> {
            let Some(ext) = entry.path().extension() &&
            sup_ext.contains(&ext.to_ascii_lowercase().to_str().unwrap_or_default())
         {
-            let text = convert_file(entry.path())?;
-            let text = text.trim();
-            if !text.is_empty() {
-                let out = entry.path().with_extension("txt");
-                println!("-> {}", out.display());
+            let out = entry.path().with_extension("txt");
 
-                fs::write(out, text)?;
+            match convert_file(entry.path()) {
+                Ok(text) => {
+                    let text = text.trim();
 
-                if args.get(2) == Some(&"-r".to_owned()) &&
-                   !ext.eq_ignore_ascii_case("txt")
-                {
-                    fs::remove_file(entry.path())?
+                    if !text.is_empty() {
+                        println!("-> {}", out.display());
+
+                        fs::write(out, text)?;
+
+                        if args.get(2) == Some(&"-r".to_owned()) &&
+                            !ext.eq_ignore_ascii_case("txt")
+                        {
+                            fs::remove_file(entry.path())?
+                        }
+
+                    }
+                }
+                Err(e) => {
+                    println!("xxx {} - {e}", out.display());
                 }
             }
         }
