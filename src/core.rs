@@ -8,7 +8,7 @@ use rtf_parser::RtfDocument;
 use scraper::{Html, Selector};
 use zip::ZipArchive;
 use crate::Format;
-use crate::tools::{clean_invalid_xml_chars, decode_bytes, decode_rtf_escapes, fix_html_entities, is_dtd, is_utf8, remove_dtd, safe_decode_bytes};
+use crate::tools::*;
 
 pub fn convert_file(path: &Path) -> anyhow::Result<String> {
     let ext = path.extension()
