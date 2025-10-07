@@ -36,7 +36,7 @@ fn main() -> Result<()> {
     }
 
     let sup_ext = ["epub", "fb2", "docx", "rtf", "html", "htm", "txt"];
-    let thrash_ext = ["djvu", "doc", "chm"];
+    let thrash_ext = ["djvu", "djv", "doc", "chm", "xls", "jpg", "jpeg", "gif", "png", "zip", "rar", "diz"];
 
     let dir = PathBuf::from_str(&args[1])?;
     for entry in WalkDir::new(dir).into_iter().filter_map(Result::ok) {
