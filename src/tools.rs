@@ -1,7 +1,9 @@
 use std::borrow::Cow;
+use std::path::PathBuf;
 use anyhow::anyhow;
 use chardetng::EncodingDetector;
 use encoding_rs::UTF_8;
+use walkdir::WalkDir;
 
 pub fn is_utf8(data: &[u8]) -> bool {
     // First: verify if file is already valid UTF-8
@@ -125,4 +127,29 @@ pub fn remove_dtd(xml: &str) -> String {
         xml.to_string()
     }
 }
+pub fn fix_html_entities(s: &str) -> String {
+    s.replace("&nbsp;", "\u{00A0}")
+     .replace("&lt;", "<")
+     .replace("&gt;", ">")
+     .replace("&amp;", "&")
+     .replace("&quot;", "\"")
+     .replace("&apos;", "'")
+}
+pub fn sanitizer(path: &PathBuf) -> anyhow::Result<()> {
+    for entry in WalkDir::new(path).into_iter()
+        .filter_map(Result::ok)
+    {
+        if entry.file_type().is_dir() &&
+           std::fs::read_dir(entry.path())?.next().is_none()
+        {
+            // Directory is empty, remove it
+            std::fs::remove_dir(entry.path())?;
+        }
 
+        if entry.file_type().is_file() && std::fs::metadata(entry.path())?.len() == 0 {
+            // File is empty, remove it
+            std::fs::remove_file(entry.path())?;
+        }
+    }
+    Ok(())
+}
