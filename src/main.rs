@@ -113,9 +113,6 @@ fn extract_zipped(path: &Path, format: Format) -> Result<String> {
             let mut data = String::new();
             f.read_to_string(&mut data)?;
 
-            // let xml =
-            //     if is_utf8(data.as_bytes()) { String::from_utf8_lossy(data.as_bytes()) }
-            //     else { decode_bytes(data.as_bytes())? };
             let raw_xml = safe_decode_bytes(data.as_bytes())?;
             let cleaned_raw_xml = raw_xml.trim().trim_matches('\0');
             let cleaned_raw_xml = clean_invalid_xml_chars(cleaned_raw_xml);
@@ -136,9 +133,6 @@ fn extract_zipped(path: &Path, format: Format) -> Result<String> {
 // ---------- FB2 ----------
 fn extract_fb2(path: &Path) -> Result<String> {
     let data = fs::read(path)?;
-    // let xml =
-    //     if is_utf8(&data) { String::from_utf8_lossy(&data) }
-    //     else { decode_bytes(&data)? };
 
     let raw_xml = safe_decode_bytes(&data)?;
     let cleaned_raw_xml = raw_xml.trim().trim_matches('\0');
@@ -176,11 +170,9 @@ fn extract_rtf(path: &Path) -> Result<String> {
 // ---------- HTML | HTM ----------
 fn extract_html(path: &Path) -> Result<String> {
     let data = fs::read(path)?;
-    // let html =
-    //     if is_utf8(&data) { String::from_utf8_lossy(&data) }
-    //     else { decode_bytes(&data)? };
-    let raw_html = safe_decode_bytes(&data)?;
-    let cleaned_raw_xml = raw_html.trim().trim_matches('\0');
+
+    let raw_xml = safe_decode_bytes(&data)?;
+    let cleaned_raw_xml = raw_xml.trim().trim_matches('\0');
     let cleaned_raw_xml = clean_invalid_xml_chars(cleaned_raw_xml);
     let doc = Html::parse_document(&cleaned_raw_xml);
 
@@ -203,13 +195,4 @@ fn convert_to_utf8(path: &Path) -> Result<String> {
         else { decode_bytes(&data)? };
 
     Ok(txt.trim().to_string())
-}
-
-
-#[cfg(test)]
-#[ignore]
-#[test]
-fn test() {
-    let p = Path::new("./1.rtf");
-    let _ = extract_rtf(p);
 }
