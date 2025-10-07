@@ -114,9 +114,9 @@ fn extract_zipped(path: &Path, format: Format) -> Result<String> {
             f.read_to_string(&mut data)?;
 
             let raw_xml = safe_decode_bytes(data.as_bytes())?;
-            let cleaned_raw_xml = raw_xml.trim().trim_matches('\0');
-            let cleaned_raw_xml = clean_invalid_xml_chars(cleaned_raw_xml);
-            let cleaned_raw_xml = remove_dtd(&cleaned_raw_xml);
+            let cleaned_raw_xml = raw_xml.trim().trim_end_matches('\0');
+            let cleaned_raw_xml = remove_dtd(cleaned_raw_xml);
+            let cleaned_raw_xml = clean_invalid_xml_chars(&cleaned_raw_xml);
             let doc = Document::parse(&cleaned_raw_xml)?;
 
             for n in doc.descendants().filter(|n| n.is_text()) {
@@ -135,9 +135,9 @@ fn extract_fb2(path: &Path) -> Result<String> {
     let data = fs::read(path)?;
 
     let raw_xml = safe_decode_bytes(&data)?;
-    let cleaned_raw_xml = raw_xml.trim().trim_matches('\0');
-    let cleaned_raw_xml = clean_invalid_xml_chars(cleaned_raw_xml);
-    let cleaned_raw_xml = remove_dtd(&cleaned_raw_xml);
+    let cleaned_raw_xml = raw_xml.trim().trim_end_matches('\0');
+    let cleaned_raw_xml = remove_dtd(cleaned_raw_xml);
+    let cleaned_raw_xml = clean_invalid_xml_chars(&cleaned_raw_xml);
     let doc = Document::parse(&cleaned_raw_xml)?;
 
     let mut buf = String::new();
@@ -155,7 +155,7 @@ fn extract_fb2(path: &Path) -> Result<String> {
 fn extract_rtf(path: &Path) -> Result<String> {
     let data = fs::read(path)?;
     let raw_rtf = safe_decode_bytes(&data)?;
-    let cleaned_raw_rtf = raw_rtf.trim().trim_matches('\0');
+    let cleaned_raw_rtf = raw_rtf.trim().trim_end_matches('\0');
 
     // Decode RTF escape sequences like \'xx into actual bytes
     let decoded_rtf = decode_rtf_escapes(cleaned_raw_rtf)?;
@@ -172,7 +172,7 @@ fn extract_html(path: &Path) -> Result<String> {
     let data = fs::read(path)?;
 
     let raw_xml = safe_decode_bytes(&data)?;
-    let cleaned_raw_xml = raw_xml.trim().trim_matches('\0');
+    let cleaned_raw_xml = raw_xml.trim().trim_end_matches('\0');
     let cleaned_raw_xml = clean_invalid_xml_chars(cleaned_raw_xml);
     let doc = Html::parse_document(&cleaned_raw_xml);
 

@@ -24,35 +24,37 @@ pub fn decode_bytes(data: &'_ [u8]) -> anyhow::Result<Cow<'_, str>> {
     Ok(text)
 }
 pub fn safe_decode_bytes(data: &'_ [u8]) -> anyhow::Result<Cow<'_, str>> {
+    if data.is_empty() {
+        return Ok(Cow::Borrowed(""));
+    }
+
     let doc =
-        if data.starts_with(&[0xFF, 0xFE]) {
-            // UTF-16 LE
-            String::from_utf16_lossy(
-                &data[2..]
-                    .chunks(2)
-                    .map(|b| u16::from_le_bytes([b[0], b[1]]))
-                    .collect::<Vec<_>>(),
-            )
-                .into()
+        if data.len() >= 2 {
+            match data {
+                [0xFF, 0xFE, ..] => {
+                    // UTF-16 LE
+                    let u16s: Vec<u16> = data[2..]
+                        .chunks_exact(2)
+                        .map(|b| u16::from_le_bytes([b[0], b[1]]))
+                        .collect();
+                    Cow::Owned(String::from_utf16_lossy(&u16s))
+                }
+                [0xFE, 0xFF, ..] => {
+                    // UTF-16 BE
+                    let u16s: Vec<u16> = data[2..]
+                        .chunks_exact(2)
+                        .map(|b| u16::from_be_bytes([b[0], b[1]]))
+                        .collect();
+                    Cow::Owned(String::from_utf16_lossy(&u16s))
+                }
+                _ => {
+                    if is_utf8(data) { String::from_utf8_lossy(data) }
+                    // Otherwise, detect encoding with chardetng
+                    else { decode_bytes(data)? }
+                }
+            }
         }
-        else if data.starts_with(&[0xFE, 0xFF]) {
-            // UTF-16 BE
-            String::from_utf16_lossy(
-                &data[2..]
-                    .chunks(2)
-                    .map(|b| u16::from_be_bytes([b[0], b[1]]))
-                    .collect::<Vec<_>>(),
-            )
-                .into()
-        }
-        else if is_utf8(data) {
-            // UTF-8
-            String::from_utf8_lossy(data)
-        }
-        else {
-            // Otherwise, detect encoding with chardetng
-            decode_bytes(data)?
-        };
+        else { return Ok(Cow::Borrowed("")) };
 
     Ok(doc)
 }
@@ -107,12 +109,20 @@ pub fn clean_invalid_xml_chars(input: &str) -> String {
         .collect()
 }
 pub fn remove_dtd(xml: &str) -> String {
-    if xml.contains("<!DOCTYPE") {
-        xml.lines()
-            .filter(|line| !line.trim_start().starts_with("<!DOCTYPE"))
-            .collect::<Vec<_>>()
-            .join("\n")
+    if let Some(start) = xml.find("<!DOCTYPE") {
+        if let Some(end) = xml[start..].find('>') {
+            // remove whole <!DOCTYPE ...> block
+            let end = start + end + 1;
+            let mut result = String::with_capacity(xml.len());
+            result.push_str(&xml[..start]);
+            result.push_str(&xml[end..]);
+            result
+        } else {
+            // malformed DTD, just cut from <!DOCTYPE to end
+            xml[..start].to_string()
+        }
     } else {
         xml.to_string()
     }
 }
+
