@@ -35,24 +35,13 @@ pub fn extract_zipped(path: &Path, format: Format) -> anyhow::Result<String> {
     for i in 0..archive.len() {
         let mut f = archive.by_index(i)?;
         if format == Format::Epub && (f.name().ends_with(".xhtml") || f.name().ends_with(".html"))
-            ||
-            format == Format::Docx && f.name() == "word/document.xml"
+                ||
+           format == Format::Docx && f.name() == "word/document.xml"
         {
             let mut data = String::new();
             f.read_to_string(&mut data)?;
 
-            let raw_xml = safe_decode_bytes(data.as_bytes())?;
-            let raw_xml = raw_xml.trim();
-
-            let cleaned_raw_xml =
-                if is_dtd(raw_xml) {
-                    let xml = remove_dtd(raw_xml);
-                    fix_html_entities(&xml)
-                }
-                else {
-                    clean_invalid_xml_chars(raw_xml)
-                };
-
+            let cleaned_raw_xml = sanitize_xml(data.as_bytes())?;
             let doc = Document::parse(&cleaned_raw_xml)?;
 
             for n in doc.descendants().filter(|n| n.is_text()) {
@@ -69,19 +58,7 @@ pub fn extract_zipped(path: &Path, format: Format) -> anyhow::Result<String> {
 // ---------- FB2 ----------
 pub fn extract_fb2(path: &Path) -> anyhow::Result<String> {
     let data = fs::read(path)?;
-
-    let raw_xml = safe_decode_bytes(&data)?;
-    let raw_xml = raw_xml.trim();
-
-    let cleaned_raw_xml =
-        if is_dtd(raw_xml) {
-            let xml = remove_dtd(raw_xml);
-            fix_html_entities(&xml)
-        }
-        else {
-            clean_invalid_xml_chars(raw_xml)
-        };
-
+    let cleaned_raw_xml = sanitize_xml(&data)?;
     let doc = Document::parse(&cleaned_raw_xml)?;
 
     let mut buf = String::new();
@@ -114,10 +91,7 @@ pub fn extract_rtf(path: &Path) -> anyhow::Result<String> {
 // ---------- HTML | HTM ----------
 pub fn extract_html(path: &Path) -> anyhow::Result<String> {
     let data = fs::read(path)?;
-
-    let raw_xml = safe_decode_bytes(&data)?;
-    let cleaned_raw_xml = raw_xml.trim();
-    let cleaned_raw_xml = clean_invalid_xml_chars(cleaned_raw_xml);
+    let cleaned_raw_xml = sanitize_xml(&data)?;
     let doc = Html::parse_document(&cleaned_raw_xml);
 
     let selector = Selector::parse("body")

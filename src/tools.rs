@@ -137,21 +137,45 @@ pub fn fix_html_entities(s: &str) -> String {
      .replace("&quot;", "\"")
      .replace("&apos;", "'")
 }
+pub fn sanitize_xml(data: &[u8]) -> anyhow::Result<String> {
+    let raw_xml = safe_decode_bytes(data)?;
+    let raw_xml = raw_xml.trim();
+
+    let cleaned_raw_xml =
+        if is_dtd(raw_xml) {
+            let xml = remove_dtd(raw_xml);
+            let xml = fix_html_entities(&xml);
+            clean_invalid_xml_chars(&xml)
+        }
+        else {
+            clean_invalid_xml_chars(raw_xml)
+        };
+
+    Ok(cleaned_raw_xml)
+}
 pub fn sanitizer(path: &PathBuf) -> anyhow::Result<()> {
+
+	// First remove empty files...
     for entry in WalkDir::new(path).into_iter()
         .filter_map(Result::ok)
+        .filter(|e| e.file_type().is_file())
     {
-        if entry.file_type().is_dir() &&
-           std::fs::read_dir(entry.path())?.next().is_none()
-        {
-            // Directory is empty, remove it
-            std::fs::remove_dir(entry.path())?;
-        }
-
-        if entry.file_type().is_file() && std::fs::metadata(entry.path())?.len() == 0 {
+        if std::fs::metadata(entry.path())?.len() == 0 {
             // File is empty, remove it
             std::fs::remove_file(entry.path())?;
         }
     }
+
+	// ... and then remove empty dirs
+    for entry in WalkDir::new(path).into_iter()
+        .filter_map(Result::ok)
+        .filter(|e| e.file_type().is_dir())
+    {
+        if std::fs::read_dir(entry.path())?.next().is_none() {
+            // Directory is empty, remove it
+            std::fs::remove_dir(entry.path())?;
+        }
+    }
+
     Ok(())
 }
