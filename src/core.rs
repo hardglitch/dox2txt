@@ -8,7 +8,7 @@ use rtf_parser::RtfDocument;
 use scraper::{Html, Selector};
 use zip::ZipArchive;
 use crate::Format;
-use crate::tools::{clean_invalid_xml_chars, decode_bytes, decode_rtf_escapes, fix_html_entities, is_utf8, remove_dtd, safe_decode_bytes};
+use crate::tools::{clean_invalid_xml_chars, decode_bytes, decode_rtf_escapes, fix_html_entities, is_dtd, is_utf8, remove_dtd, safe_decode_bytes};
 
 pub fn convert_file(path: &Path) -> anyhow::Result<String> {
     let ext = path.extension()
@@ -42,10 +42,17 @@ pub fn extract_zipped(path: &Path, format: Format) -> anyhow::Result<String> {
             f.read_to_string(&mut data)?;
 
             let raw_xml = safe_decode_bytes(data.as_bytes())?;
-            let cleaned_raw_xml = raw_xml.trim().trim_end_matches('\0');
-            let cleaned_raw_xml = remove_dtd(cleaned_raw_xml);
-            let cleaned_raw_xml = fix_html_entities(&cleaned_raw_xml);
-            let cleaned_raw_xml = clean_invalid_xml_chars(&cleaned_raw_xml);
+            let raw_xml = raw_xml.trim();
+
+            let cleaned_raw_xml =
+                if is_dtd(raw_xml) {
+                    let xml = remove_dtd(raw_xml);
+                    fix_html_entities(&xml)
+                }
+                else {
+                    clean_invalid_xml_chars(raw_xml)
+                };
+
             let doc = Document::parse(&cleaned_raw_xml)?;
 
             for n in doc.descendants().filter(|n| n.is_text()) {
@@ -64,10 +71,17 @@ pub fn extract_fb2(path: &Path) -> anyhow::Result<String> {
     let data = fs::read(path)?;
 
     let raw_xml = safe_decode_bytes(&data)?;
-    let cleaned_raw_xml = raw_xml.trim().trim_end_matches('\0');
-    let cleaned_raw_xml = remove_dtd(cleaned_raw_xml);
-    let cleaned_raw_xml = fix_html_entities(&cleaned_raw_xml);
-    let cleaned_raw_xml = clean_invalid_xml_chars(&cleaned_raw_xml);
+    let raw_xml = raw_xml.trim();
+
+    let cleaned_raw_xml =
+        if is_dtd(raw_xml) {
+            let xml = remove_dtd(raw_xml);
+            fix_html_entities(&xml)
+        }
+        else {
+            clean_invalid_xml_chars(raw_xml)
+        };
+
     let doc = Document::parse(&cleaned_raw_xml)?;
 
     let mut buf = String::new();
@@ -85,7 +99,7 @@ pub fn extract_fb2(path: &Path) -> anyhow::Result<String> {
 pub fn extract_rtf(path: &Path) -> anyhow::Result<String> {
     let data = fs::read(path)?;
     let raw_rtf = safe_decode_bytes(&data)?;
-    let cleaned_raw_rtf = raw_rtf.trim().trim_end_matches('\0');
+    let cleaned_raw_rtf = raw_rtf.trim();
 
     // Decode RTF escape sequences like \'xx into actual bytes
     let decoded_rtf = decode_rtf_escapes(cleaned_raw_rtf)?;
@@ -102,7 +116,7 @@ pub fn extract_html(path: &Path) -> anyhow::Result<String> {
     let data = fs::read(path)?;
 
     let raw_xml = safe_decode_bytes(&data)?;
-    let cleaned_raw_xml = raw_xml.trim().trim_end_matches('\0');
+    let cleaned_raw_xml = raw_xml.trim();
     let cleaned_raw_xml = clean_invalid_xml_chars(cleaned_raw_xml);
     let doc = Html::parse_document(&cleaned_raw_xml);
 

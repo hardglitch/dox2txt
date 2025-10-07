@@ -101,14 +101,16 @@ pub fn decode_rtf_escapes(rtf: &str) -> anyhow::Result<String> {
 pub fn clean_invalid_xml_chars(input: &str) -> String {
     input
         .chars()
-        .filter(|&c| match c {
-            '\u{9}' | '\u{A}' | '\u{D}' => true, // allowed
-            '\u{20}'..='\u{D7FF}' |
-            '\u{E000}'..='\u{FFFD}' |
-            '\u{10000}'..='\u{10FFFF}' => true,
-            _ => false,
-        })
+        .filter(|&c|
+            match c {
+                '\u{9}' | '\u{A}' | '\u{D}' => true, // allowed
+                '\u{20}'..='\u{D7FF}' | '\u{E000}'..='\u{FFFD}' | '\u{10000}'..='\u{10FFFF}' => true,
+                _ => false,
+            })
         .collect()
+}
+pub fn is_dtd(xml: &str) -> bool {
+    xml.contains("<!DOCTYPE")
 }
 pub fn remove_dtd(xml: &str) -> String {
     if let Some(start) = xml.find("<!DOCTYPE") {
