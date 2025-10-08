@@ -160,8 +160,8 @@ pub fn sanitizer(path: &PathBuf) -> anyhow::Result<()> {
         .filter_map(Result::ok)
         .filter(|e| e.file_type().is_file())
     {
-        if std::fs::metadata(entry.path())?.len() == 0 {
-            // File is empty, remove it
+        if std::fs::metadata(entry.path())?.len() < 1024 {
+            // File is empty or useless, remove it
             std::fs::remove_file(entry.path())?;
         }
     }
